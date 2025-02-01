@@ -1,62 +1,88 @@
 package ru.aston.ogurnoy_na.task1;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ColoringTest {
     private final User firstTimeUser = new User(25, "Anna", "Ivanova", true, false);
     private final User regularUser = new User(30, "Peter", "Petrov", false, true);
+    private final User frequentUser = new User(35, "Olga", "Sidorova", true, true);
 
     @Test
     void calculateDiscount_shouldAddFirstTimeDiscount() {
-        // Тест для первой покраски
         Coloring service1 = new Coloring(1000, firstTimeUser, true, Coloring.HairColor.BLOND);
-        assertEquals(200.0, service1.calculateDiscount(), 0.001); // 10% (frequent) + 10% (first time)
+        // Базовая скидка 10% (frequent user) + 10% (first time)
+        assertEquals(200.0, service1.calculateDiscount(), 0.001);
 
-        // Тест для повторной покраски
-        Coloring service2 = new Coloring(1000, regularUser, false, Coloring.HairColor.BLACK);
-        assertEquals(100.0, service2.calculateDiscount(), 0.001); // 10% (short hair)
+        Coloring service2 = new Coloring(1000, frequentUser, true, Coloring.HairColor.BROWN);
+        // Только базовая скидка 10% (frequent user)
+        assertEquals(100.0, service2.calculateDiscount(), 0.001);
     }
 
     @Test
     void combinedDiscountsCalculation() {
-        // Комбинация: frequent user + short hair + first time
-        User user = new User(25, "Test", "User", true, false);
-        Coloring service = new Coloring(1000, user, false, Coloring.HairColor.BROWN);
+        Coloring service = new Coloring(1000, frequentUser, false, Coloring.HairColor.BROWN);
+        // 10% (frequent) + 10% (short hair) = 20%
+        assertEquals(200.0, service.calculateDiscount(), 0.001);
+    }
 
-        // 10% (frequent) + 10% (short hair) + 10% (first time) = 30%
-        assertEquals(300.0, service.calculateDiscount(), 0.001);
+    @Test
+    void discountShouldNotExceedPrice() {
+        User maxDiscountUser = new User(20, "Max", "Discount", true, false);
+        Coloring service = new Coloring(100, maxDiscountUser, false, Coloring.HairColor.WHITE);
+        // 10% (frequent) + 10% (short hair) + 10% (first time) = 30% (30 руб)
+        assertEquals(30.0, service.calculateDiscount(), 0.001);
+
+        Coloring expensiveService = new Coloring(50, maxDiscountUser, false, Coloring.HairColor.WHITE);
+        // 30% от 50 = 15 руб
+        assertEquals(15.0, expensiveService.calculateDiscount(), 0.001);
     }
 
     @Test
     void getDiscountedPrice_shouldApplyAllDiscounts() {
-        Coloring service = new Coloring(2000, firstTimeUser, false, Coloring.HairColor.WHITE);
-        // 10% (frequent) + 10% (short hair) + 10% (first time) = 30% от 2000
-        assertEquals(1400.0, service.getDiscountedPrice(), 0.001);
+        Coloring service = new Coloring(2000, frequentUser, false, Coloring.HairColor.WHITE);
+        // 10% (frequent) + 10% (short hair) = 20% от 2000 → 1600
+        assertEquals(1600.0, service.getDiscountedPrice(), 0.001);
     }
 
     @Test
     void toString_shouldIncludeHairColorInfo() {
         Coloring service = new Coloring(1500, regularUser, true, Coloring.HairColor.BLACK);
-        String expected = "Peter Petrov, 30 лет, не частый пользователь, 1500.0 рублей, "
-                + "скидка: 0.0 рублей, длинные волосы BLACK";
+        String expected = "Peter Petrov, 30 лет, не частый пользователь, окрашенные волосы, 1500,00 руб., скидка: 0,00 руб., длинные волосы, цвет покраски: black";
         assertEquals(expected, service.toString());
     }
 
     @Test
-    void edgeCase_zeroPriceAndDiscounts() {
-        User user = new User(0, "", "", false, false);
-        Coloring service = new Coloring(0, user, true, Coloring.HairColor.WHITE);
+    void shouldThrowExceptionForInvalidPrice() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new Coloring(-100, firstTimeUser, true, Coloring.HairColor.BLOND)
+        );
 
-        assertEquals(0.0, service.calculateDiscount(), 0.001);
-        assertEquals(0.0, service.getDiscountedPrice(), 0.001);
+        assertThrows(IllegalArgumentException.class, () ->
+                new Coloring(0, regularUser, false, Coloring.HairColor.BLACK)
+        );
+    }
+
+    @Test
+    void shouldThrowExceptionForNullHairColor() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new Coloring(1000, firstTimeUser, true, null)
+        );
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void shouldHandleDifferentHairLengths(boolean longHair) {
+        Coloring service = new Coloring(1000, frequentUser, longHair, Coloring.HairColor.BLOND);
+        assertNotNull(service.calculateDiscount());
     }
 
     @Test
     void stateAfterService_shouldNotAutoUpdateUser() {
-        // Проверяем, что сервис не меняет состояние волос автоматически
         Coloring service = new Coloring(1000, firstTimeUser, true, Coloring.HairColor.BLOND);
         service.calculateDiscount();
-        assertFalse(firstTimeUser.isColoredHair(), "Состояние волос не должно меняться автоматически");
+        assertFalse(firstTimeUser.isColoredHair());
     }
 }

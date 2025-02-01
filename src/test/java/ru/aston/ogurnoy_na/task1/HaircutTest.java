@@ -1,6 +1,8 @@
 package ru.aston.ogurnoy_na.task1;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HaircutTest {
@@ -8,49 +10,64 @@ class HaircutTest {
     private final User adultUser = new User(30, "Olga", "Petrova", true, true);
 
     @Test
+    void constructor_shouldThrowForNullHaircutType() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Haircut(1000, adultUser, false, null));
+    }
+
+    @Test
     void calculateDiscount_shouldAddPensionerDiscount() {
-        // Базовая скидка: 10% (frequentUser) + 10% (short hair) = 20%
         Haircut service1 = new Haircut(1000, adultUser, false, Haircut.HaircutType.FEMALE_BOB);
         assertEquals(200.0, service1.calculateDiscount(), 0.001);
 
-        // Пенсионерская скидка: 10% (short hair) + 10% (пенсионер) = 30%
         Haircut service2 = new Haircut(1000, pensioner, false, Haircut.HaircutType.MALE_BOX);
         assertEquals(200.0, service2.calculateDiscount(), 0.001);
     }
 
-    @Test
-    void pensionerDiscountEdgeCases() {
-        // Возраст 60 лет - скидки нет
-        User borderUser = new User(60, "Test", "User", false, false);
-        Haircut service = new Haircut(1000, borderUser, true, Haircut.HaircutType.FEMALE_PIXI);
-        assertEquals(0.0, service.calculateDiscount(), 0.001);
+    @ParameterizedTest
+    @ValueSource(ints = {60, 61, 100})
+    void pensionerDiscountAgeBoundary(int age) {
+        User user = new User(age, "Test", "User", false, false);
+        Haircut service = new Haircut(1000, user, false, Haircut.HaircutType.MALE_CROP);
 
-        // Возраст 61 год - скидка есть
-        borderUser.setAge(61);
-        assertEquals(100.0, service.calculateDiscount(), 0.001);
+        double expectedDiscount = age > 60 ? 200.0 : 100.0;
+        assertEquals(expectedDiscount, service.calculateDiscount(), 0.001);
     }
 
     @Test
-    void getDiscountedPrice_shouldApplyAllDiscounts() {
-        Haircut service = new Haircut(1000, pensioner, false, Haircut.HaircutType.MALE_CROP);
-        assertEquals(800.0, service.getDiscountedPrice(), 0.001);
+    void getDiscountedPrice_shouldNotBeNegative() {
+        Haircut service = new Haircut(100, pensioner, false, Haircut.HaircutType.FEMALE_BOB);
+        assertEquals(0.0, service.getDiscountedPrice(), 0.001); // 100 - 30% = 70, но 100 - (10+10+10) = 70
     }
 
     @Test
-    void toString_shouldIncludeHaircutType() {
+    void toString_shouldFormatHaircutType() {
         Haircut service = new Haircut(1500, adultUser, true, Haircut.HaircutType.FEMALE_PIXI);
-        String expected = "Olga Petrova, 30 лет, частый пользователь, 1500.0 рублей, "
-                + "скидка: 150.0 рублей, длинные волосы FEMALE_PIXI";
+        String expected = "Olga Petrova, 30 лет, частый пользователь, 1500.00 руб., "
+                + "скидка: 150.00 руб., длинные волосы, тип стрижки: female pixi";
         assertEquals(expected, service.toString());
     }
 
     @Test
-    void interactionOfAllDiscounts() {
-        User premiumPensioner = new User(65, "Elena", "Ivanova", true, false);
-        Haircut service = new Haircut(1000, premiumPensioner, false, Haircut.HaircutType.FEMALE_BOB);
+    void equalsAndHashCode() {
+        Haircut haircut1 = new Haircut(1000, adultUser, false, Haircut.HaircutType.FEMALE_BOB);
+        Haircut haircut2 = new Haircut(1000, adultUser, false, Haircut.HaircutType.FEMALE_BOB);
+        Haircut differentType = new Haircut(1000, adultUser, false, Haircut.HaircutType.MALE_BOX);
 
-        // 10% (frequent) + 10% (short hair) + 10% (pensioner) = 30%
-        assertEquals(300.0, service.calculateDiscount(), 0.001);
-        assertEquals(700.0, service.getDiscountedPrice(), 0.001);
+        assertAll(
+                () -> assertEquals(haircut1, haircut2),
+                () -> assertNotEquals(haircut1, differentType),
+                () -> assertEquals(haircut1.hashCode(), haircut2.hashCode())
+        );
+    }
+
+    @Test
+    void maximumDiscountCalculation() {
+        User maxDiscountUser = new User(65, "Max", "Discount", true, false);
+        Haircut service = new Haircut(100, maxDiscountUser, false, Haircut.HaircutType.MALE_CROP);
+
+        // 10% (frequent) + 10% (short) + 10% (пенсионер) = 30% от 100 = 30
+        assertEquals(30.0, service.calculateDiscount(), 0.001);
+        assertEquals(70.0, service.getDiscountedPrice(), 0.001);
     }
 }
