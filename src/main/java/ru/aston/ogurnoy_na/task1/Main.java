@@ -1,7 +1,8 @@
 package ru.aston.ogurnoy_na.task1;
 
-public class Main {
+class Main {
     public static void main(String[] args) {
-        System.out.println("Hello world!");
+        HairdressingSalonWork hairdressingSalonWork = new HairdressingSalonWork();
+        System.out.print(hairdressingSalonWork);
     }
 }
