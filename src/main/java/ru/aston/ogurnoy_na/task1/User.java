@@ -1,5 +1,7 @@
 package ru.aston.ogurnoy_na.task1;
 
+import ru.aston.ogurnoy_na.task1.exceptions.InvalidUserParameterException;
+
 import java.util.Objects;
 
 /**
@@ -23,7 +25,7 @@ public class User {
      * @param surname фамилия пользователя (не может быть null или пустой)
      * @param frequentUser признак частого пользователя
      * @param coloredHair признак окрашенных волос
-     * @throws IllegalArgumentException если не соблюдены ограничения для параметров
+     * @throws InvalidUserParameterException если не соблюдены ограничения для параметров
      */
     public User(int age, String name, String surname, boolean frequentUser, boolean coloredHair) {
         setAge(age);
@@ -57,7 +59,7 @@ public class User {
     // Сеттеры с валидацией
     public void setAge(int age) {
         if (age < MIN_AGE || age > MAX_AGE) {
-            throw new IllegalArgumentException("Возраст должен быть между " + MIN_AGE + " и " + MAX_AGE);
+            throw new InvalidUserParameterException("Возраст должен быть между " + MIN_AGE + " и " + MAX_AGE);
         }
         this.age = age;
     }
@@ -82,7 +84,7 @@ public class User {
 
     private void validateName(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
-            throw new IllegalArgumentException(fieldName + " не может быть null или пустым");
+            throw new InvalidUserParameterException(fieldName + " не может быть null или пустым");
         }
     }
 

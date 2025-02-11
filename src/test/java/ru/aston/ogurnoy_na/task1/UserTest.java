@@ -3,6 +3,8 @@ package ru.aston.ogurnoy_na.task1;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import ru.aston.ogurnoy_na.task1.exceptions.InvalidUserParameterException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class UserTest {
@@ -32,7 +34,7 @@ class UserTest {
     @ParameterizedTest
     @ValueSource(ints = {-10, 200})
     void setInvalidAgeShouldThrowException(int invalidAge) {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(InvalidUserParameterException.class,
                 () -> user.setAge(invalidAge),
                 "Должно выбрасываться исключение для возраста: " + invalidAge);
     }
@@ -46,11 +48,11 @@ class UserTest {
     @Test
     void setInvalidNameShouldThrowException() {
         assertAll(
-                () -> assertThrows(IllegalArgumentException.class,
+                () -> assertThrows(InvalidUserParameterException.class,
                         () -> user.setName(null),
                         "Null имя должно вызывать исключение"),
 
-                () -> assertThrows(IllegalArgumentException.class,
+                () -> assertThrows(InvalidUserParameterException.class,
                         () -> user.setName("   "),
                         "Пустое имя должно вызывать исключение")
         );
@@ -82,16 +84,16 @@ class UserTest {
     @Test
     void invalidConstructorParameters() {
         assertAll(
-                () -> assertThrows(IllegalArgumentException.class,
+                () -> assertThrows(InvalidUserParameterException.class,
                         () -> new User(-5, "Иван", "Иванов", true, false)),
 
-                () -> assertThrows(IllegalArgumentException.class,
+                () -> assertThrows(InvalidUserParameterException.class,
                         () -> new User(25, null, "Иванов", true, false)),
 
-                () -> assertThrows(IllegalArgumentException.class,
+                () -> assertThrows(InvalidUserParameterException.class,
                         () -> new User(25, "  ", "Иванов", true, false)),
 
-                () -> assertThrows(IllegalArgumentException.class,
+                () -> assertThrows(InvalidUserParameterException.class,
                         () -> new User(25, "Иван", "", true, false))
         );
     }

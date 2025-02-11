@@ -1,13 +1,19 @@
 package ru.aston.ogurnoy_na.task1;
 
-import java.util.List;
-import java.util.Comparator;
+import ru.aston.ogurnoy_na.task1.enums.HairColor;
+import ru.aston.ogurnoy_na.task1.enums.HaircutType;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * Класс для управления услугами парикмахерской и анализа данных.
  */
 public class HairdressingSalonWork {
+    private static final String REPORT_HEADER = "Отчёт об услугах парикмахерской:\n";
+    private static final String TOTAL_REVENUE_FORMAT = "\nОбщая выручка: %.2f рублей";
     private final List<HairdressingService> services;
 
     public HairdressingSalonWork() {
@@ -15,7 +21,7 @@ public class HairdressingSalonWork {
     }
 
     /**
-     * Инициализирует демонстрационный набор услуг
+     * Инициализирует демонстрационный набор услуг.
      */
     private List<HairdressingService> initializeDemoServices() {
         List<User> users = List.of(
@@ -28,42 +34,69 @@ public class HairdressingSalonWork {
                 new User(26, "Татьяна", "Петрова", true, true),
                 new User(54, "Марина", "Иванова", true, false)
         );
-
         return List.of(
-                new Haircut(1000, users.get(0), true, Haircut.HaircutType.MALE_BOX),
-                new Haircut(1200, users.get(1), true, Haircut.HaircutType.FEMALE_PIXI),
-                new Haircut(800, users.get(2), false, Haircut.HaircutType.FEMALE_BOB),
-                new Haircut(900, users.get(3), true, Haircut.HaircutType.MALE_CROP),
-                new Coloring(1400, users.get(4), false, Coloring.HairColor.BLACK),
-                new Coloring(1600, users.get(5), true, Coloring.HairColor.BROWN),
-                new Coloring(1500, users.get(6), false, Coloring.HairColor.BLOND),
-                new Coloring(1300, users.get(7), true, Coloring.HairColor.WHITE)
+                new Haircut(new BigDecimal("1000"), users.get(0), true, HaircutType.MALE_BOX),
+                new Haircut(new BigDecimal("1200"), users.get(1), true, HaircutType.FEMALE_PIXI),
+                new Haircut(new BigDecimal("800"), users.get(2), false, HaircutType.FEMALE_BOB),
+                new Haircut(new BigDecimal("900"), users.get(3), true, HaircutType.MALE_CROP),
+                new Coloring(new BigDecimal("1400"), users.get(4), false, HairColor.BLACK),
+                new Coloring(new BigDecimal("1600"), users.get(5), true, HairColor.BROWN),
+                new Coloring(new BigDecimal("1500"), users.get(6), false, HairColor.BLOND),
+                new Coloring(new BigDecimal("1300"), users.get(7), true, HairColor.WHITE)
         );
     }
 
     /**
-     * Рассчитывает общую сумму выручки с учётом всех скидок
+     * Рассчитывает общую сумму выручки с учётом всех скидок.
      */
-    public double calculateTotalRevenue() {
+    public BigDecimal calculateTotalRevenue() {
+        if (services.isEmpty()) {
+            return BigDecimal.ZERO; // Защита от пустого списка услуг
+        }
         return services.stream()
-                .mapToDouble(HairdressingService::getDiscountedPrice)
-                .sum();
+                .map(HairdressingService::calculateFinalPrice) // Используем метод для получения цены со скидкой
+                .reduce(BigDecimal.ZERO, BigDecimal::add) // Складываем все цены со скидкой
+                .setScale(2, RoundingMode.HALF_UP); // Два знака после запятой
     }
 
     /**
-     * Формирует отчёт об услугах, отсортированный по фамилиям клиентов
+     * Формирует отчёт об услугах, отсортированный по фамилиям клиентов.
      */
     public String generateServicesReport() {
-        return services.stream()
-                .sorted(Comparator.comparing(s -> s.getUser().getSurname()))
-                .map(HairdressingService::toString)
-                .collect(Collectors.joining("\n"));
+        if (services.isEmpty()) {
+            return "Нет доступных услуг."; // Защита от пустого списка услуг
+        }
+        return REPORT_HEADER + services.stream()
+                .sorted(Comparator.comparing(s -> s.getUser().getSurname())) // Сортировка по фамилии
+                .map(HairdressingService::toString) // Преобразование каждой услуги в строку
+                .collect(Collectors.joining("\n")); // Объединение в одну строку
     }
 
+    /**
+     * Возвращает среднюю стоимость услуги.
+     */
+    public BigDecimal calculateAverageServicePrice() {
+        if (services.isEmpty()) {
+            return BigDecimal.ZERO; // Защита от пустого списка услуг
+        }
+        BigDecimal totalRevenue = calculateTotalRevenue();
+        return totalRevenue.divide(BigDecimal.valueOf(services.size()), 2, RoundingMode.HALF_UP); // Два знака после запятой
+    }
+
+    /**
+     * Фильтрует услуги по типу (например, только стрижки или окрашивания).
+     */
+    public List<HairdressingService> filterServicesByType(Class<? extends HairdressingService> serviceType) {
+        return services.stream()
+                .filter(serviceType::isInstance) // Фильтрация по типу
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Генерирует строковое представление объекта.
+     */
     @Override
     public String toString() {
-        return String.format("%s%n%nОбщая выручка: %.2f рублей",
-                generateServicesReport(),
-                calculateTotalRevenue());
+        return generateServicesReport() + String.format(TOTAL_REVENUE_FORMAT, calculateTotalRevenue());
     }
 }

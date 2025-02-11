@@ -1,50 +1,66 @@
 package ru.aston.ogurnoy_na.task1;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
+
+import ru.aston.ogurnoy_na.task1.exceptions.InvalidServiceParameterException;
 
 /**
  * Абстрактный класс, представляющий услугу парикмахерской.
  */
 public abstract class HairdressingService {
-    private static final double FREQUENT_USER_DISCOUNT = 0.1;
-    private static final double SHORT_HAIR_DISCOUNT = 0.1;
-    private static final double MIN_PRICE = 0.0;
-
-    private final double price;
+    protected static final BigDecimal FREQUENT_USER_DISCOUNT = BigDecimal.valueOf(0.1);
+    protected static final BigDecimal SHORT_HAIR_DISCOUNT = BigDecimal.valueOf(0.1);
+    private static final BigDecimal MIN_PRICE = BigDecimal.ZERO;
+    private static final BigDecimal MAX_DISCOUNT_RATE = BigDecimal.ONE;
+    private final BigDecimal price;
     private final User user;
     private final boolean longHair;
 
     /**
      * Конструктор для создания услуги парикмахерской.
      *
-     * @param price стоимость услуги (должна быть неотрицательной)
-     * @param user пользователь, для которого выполняется услуга (не может быть null)
+     * @param price    стоимость услуги (должна быть положительной)
+     * @param user     пользователь, для которого выполняется услуга (не может быть null)
      * @param longHair признак длинных волос
-     * @throws IllegalArgumentException если нарушены условия валидации параметров
+     * @throws InvalidServiceParameterException если параметры невалидны
      */
-    public HairdressingService(double price, User user, boolean longHair) {
-        validatePrice(price);
-        validateUser(user);
-
-        this.price = price;
+    public HairdressingService(BigDecimal price, User user, boolean longHair) {
+        validateParameters(price, user);
+        this.price = price.setScale(2, RoundingMode.HALF_UP); // Устанавливаем два знака после запятой
         this.user = user;
         this.longHair = longHair;
     }
 
-    private void validatePrice(double price) {
-        if (price < MIN_PRICE) {
-            throw new IllegalArgumentException("Цена не может быть отрицательной: " + price);
+    private void validateParameters(BigDecimal price, User user) {
+        if (price == null) {
+            throw new InvalidServiceParameterException("Цена не может быть null");
         }
-    }
-
-    private void validateUser(User user) {
+        if (price.compareTo(MIN_PRICE) < 0) {
+            throw new InvalidServiceParameterException("Цена не может быть отрицательной: " + price);
+        }
         if (user == null) {
-            throw new IllegalArgumentException("Пользователь не может быть null");
+            throw new InvalidServiceParameterException("Пользователь не может быть null");
+        }
+        validateDiscountRates();
+    }
+
+    private void validateDiscountRates() {
+        validateDiscountRate(FREQUENT_USER_DISCOUNT, "Скидка для постоянных клиентов");
+        validateDiscountRate(SHORT_HAIR_DISCOUNT, "Скидка за короткие волосы");
+    }
+
+    private void validateDiscountRate(BigDecimal rate, String discountName) {
+        if (rate.compareTo(BigDecimal.ZERO) < 0 || rate.compareTo(MAX_DISCOUNT_RATE) > 0) {
+            throw new InvalidServiceParameterException(
+                    String.format("%s должна быть в диапазоне от 0 до 1: %s", discountName, rate)
+            );
         }
     }
 
-    public final double getPrice() {
-        return price;
+    public final BigDecimal getPrice() {
+        return price.setScale(2, RoundingMode.HALF_UP); // Всегда возвращаем цену с двумя знаками после запятой
     }
 
     public User getUser() {
@@ -56,56 +72,77 @@ public abstract class HairdressingService {
     }
 
     /**
-     * Рассчитывает итоговую цену с учетом скидки.
+     * Рассчитывает итоговую цену с учетом всех скидок.
      *
-     * @return итоговая цена после применения скидок (не менее 0)
+     * @return итоговая цена (не может быть отрицательной)
      */
-    public double getDiscountedPrice() {
-        double discount = calculateDiscount();
-        double finalPrice = price - discount;
-        return Math.max(finalPrice, MIN_PRICE);
+    public BigDecimal calculateFinalPrice() {
+        BigDecimal discount = calculateDiscount();
+        BigDecimal finalPrice = price.subtract(discount);
+        return finalPrice.max(MIN_PRICE).setScale(2, RoundingMode.HALF_UP); // Два знака после запятой
+    }
+
+    /**
+     * Рассчитывает общую сумму скидки.
+     *
+     * @return суммарная скидка на услугу
+     */
+    protected BigDecimal calculateDiscount() {
+        BigDecimal discount = BigDecimal.ZERO;
+        if (user.isFrequentUser()) {
+            discount = discount.add(price.multiply(FREQUENT_USER_DISCOUNT));
+        }
+        if (!longHair) {
+            discount = discount.add(price.multiply(SHORT_HAIR_DISCOUNT));
+        }
+        return discount.setScale(2, RoundingMode.HALF_UP); // Два знака после запятой
+    }
+
+    /**
+     * Возвращает детализацию скидок.
+     */
+    public String getDiscountDetails() {
+        StringBuilder details = new StringBuilder();
+        BigDecimal totalDiscount = calculateDiscount();
+        if (user.isFrequentUser()) {
+            details.append(String.format("Скидка за частые посещения: %.1f%%",
+                    FREQUENT_USER_DISCOUNT.multiply(BigDecimal.valueOf(100))));
+        }
+        if (!longHair) {
+            if (!details.isEmpty()) details.append("; ");
+            details.append(String.format("Скидка за короткие волосы: %.1f%%",
+                    SHORT_HAIR_DISCOUNT.multiply(BigDecimal.valueOf(100))));
+        }
+        if (details.isEmpty()) {
+            details.append("Скидки отсутствуют");
+        } else {
+            details.append(String.format(". Итого скидка: %.2f руб.", totalDiscount));
+        }
+        return details.toString();
     }
 
     @Override
     public String toString() {
-        return String.format("%s, %.2f руб., скидка: %.2f руб., %s",
-                user,
+        return String.format("Услуга для %s %s, цена: %.2f руб., %s, тип волос: %s",
+                user.getName(),
+                user.getSurname(),
                 price,
-                calculateDiscount(),
-                longHair ? "длинные волосы" : "короткие волосы");
-    }
-
-    /**
-     * Рассчитывает общий размер скидки.
-     *
-     * @return суммарная скидка на услугу
-     */
-    protected double calculateDiscount() {
-        double discount = 0.0;
-
-        if (user.isFrequentUser()) {
-            discount += price * FREQUENT_USER_DISCOUNT;
-        }
-
-        if (!longHair) {
-            discount += price * SHORT_HAIR_DISCOUNT;
-        }
-
-        return discount;
+                getDiscountDetails(),
+                longHair ? "длинные" : "короткие"
+        );
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        HairdressingService that = (HairdressingService) o;
-        return Double.compare(price, that.price) == 0 &&
-                longHair == that.longHair &&
+        if (!(o instanceof HairdressingService that)) return false;
+        return longHair == that.longHair &&
+                price.compareTo(that.price) == 0 &&
                 user.equals(that.user);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(price, user, longHair);
+        return Objects.hash(price.stripTrailingZeros(), user, longHair);
     }
 }
